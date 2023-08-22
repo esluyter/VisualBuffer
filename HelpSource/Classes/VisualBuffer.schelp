@@ -1,0 +1,371 @@
+TITLE:: VisualBuffer
+summary:: Wrapper around a Buffer with editable GUI, drag/drop reading of sound files, Array-like data access, and automatic save/recall.
+categories:: Server>Abstractions
+related:: Classes/Buffer, Reference/Server-Architecture
+
+DESCRIPTION::
+Heavily inspired by Pure Data arrays/tables, VisualBuffer is an attempt to bridge the client and server sides of a Buffer for a more integrated, intuitive and tactile experience.
+
+VisualBuffer provides Array-style at and put commands as well as a GUI to visualize and edit the Buffer contents in real time. Additionally, the state of the GUI window and (optionally) the buffer contents themselves are saved automatically so the next time you open your project, everything will be the way it was.
+
+This is done by saving a wav file and a text file in the directory of your .scd file under a folder called .cacheVB. Calling .delete on the VisualBuffer will remove these cache files.
+
+See examples for a demonstration of its use, or watch https://www.youtube.com/watch?v=49kkbrzpqLQ
+
+Note that:
+LIST::
+## It's only built for single server use (link::Classes/VisualBuffer#*server::).
+## The buffer will be mono, a la Pd array. If you read or drag/drop a multichannel sound file, it will read the first channel by default.
+## Most commands operate synchronously on .data. If you use one of the asynchronous methods (refresh, read, normalize, updateInfo, gen, sine1-3, cheby), the data will update itself momentarily but not instantaneously. In practice, I haven't had to worry about this.
+::
+
+
+NOTE::
+This project is a work in progress.
+LIST::
+## I have not yet implemented x- and y-axis tick marks / legends.
+## I have not yet implemented a View that can be incorporated into larger GUIs.
+## I am considering adding applicable methods from Array, such as swap, replace, reverse, scramble, etc.
+## As far as I know there is no way to manually update the sample rate of a Buffer on the server, therefore sampleRate should be taken with a little grain of salt. (i.e. if you read a file then resize the buffer, the sample rate will revert to the server's sample rate.) I am trying to find a way around that, e.g. by writing a temporary sound file and then reading it into the buffer.....
+::
+::
+
+
+CLASSMETHODS::
+
+METHOD:: new
+NOTE::
+Will throw an error if the server is not booted, or if the .scd file it is called from has not yet been saved somewhere.
+::
+
+ARGUMENT:: name
+The name to identify the VisualBuffer. If this VisualBuffer is already allocated, will return it, otherwise will allocate a new Buffer on the server and will load cached data if it exists.
+
+ARGUMENT:: makeWindow
+Whether to open the GUI window for this VisualBuffer.
+
+returns:: a VisualBuffer object
+
+METHOD:: server
+The Server on which all VisualBuffers will be allocated. Defaults to Server.default.
+
+METHOD:: visualBuffers
+Dictionary of all the VisualBuffers currently allocated.
+
+
+INSTANCEMETHODS::
+
+METHOD:: name
+The name that identifies the VisualBuffer.
+
+METHOD:: data
+Get or set a FloatArray representing the contents of the Buffer. Setter converts to FloatArray and resizes the Buffer automatically.
+
+METHOD:: buffer
+The associated Buffer representing the buffer allocated on the server.
+
+METHOD:: read
+Reads an audio file on disk into the Buffer. (You can also drag-and-drop the file onto the GUI window.)
+
+ARGUMENT:: path
+String representing absolute file path.
+
+ARGUMENT:: resize
+Whether or not to resize the Buffer to accomodate the file length.
+
+ARGUMENT:: channel
+Which channel to read.
+
+METHOD:: free
+Frees the Buffer and removes the VisualBuffer from VisualBuffer.visualBuffers. Keeps the cached data for next time.
+
+METHOD:: delete
+Calls .free and also deletes all cached data from disk.
+
+
+
+SUBSECTION::Array access
+
+METHOD:: at
+Return the float at index. Equivalent to .clipAt.
+
+METHOD:: wrapAt
+Return the float at index, wrapping around if index is outside of bounds.
+
+METHOD:: put
+Put float or array at index, replacing what is there.
+
+METHOD:: copySeries
+Return a new ArrayedCollection consisting of the values starting at first, then every step of the distance between first and second, up until last. See link::Classes/Array#-copySeries::
+
+METHOD:: putSeries
+Put value at every index starting at first, then every step of the distance between first and second, up until last. See link::Classes/Array#-putSeries::
+
+METHOD:: fill
+Fills the Buffer with value.
+NOTE::
+This behaves like link::Classes/Array#-fill:: rather than Buffer: -fill.
+::
+
+METHOD:: maxItem
+  Returns the maximum value in the buffer.
+
+METHOD:: minItem
+  Returns the minimum value in the buffer.
+
+
+
+SUBSECTION::Buffer information
+
+METHOD:: size
+Gets and sets the size of the Buffer in samples.
+
+METHOD:: duration
+The duration of the Buffer in seconds.
+
+METHOD:: sampleRate
+If you have called .read on this VisualBuffer, this will be the sample rate of the file that was read. Otherwise this will be the server's sample rate.
+
+METHOD:: bufnum
+The index of the allocated Buffer on the server.
+
+
+
+SUBSECTION::Buffer actions
+
+METHOD:: write
+Write the contents of the buffer to a file. See link::Classes/Buffer#-write::
+
+METHOD:: play
+Plays the contents of the buffer on the server and returns a corresponding Synth.
+
+METHOD:: normalize
+Normalizes the buffer so that the peak absolute value is newmax (which defaults to 1).
+
+METHOD:: gen
+This is a generalized version of the commands below. See link::Classes/Buffer#-gen::
+
+METHOD:: sine1
+Fill this buffer with a series of sine wave harmonics using specified amplitudes. See link::Classes/Buffer#-sine1::
+
+METHOD:: sine2
+Fill this buffer with a series of sine wave partials using specified frequencies and amplitudes. See link::Classes/Buffer#-sine2::
+
+METHOD:: sine3
+Fill this buffer with a series of sine wave harmonics/partials using specified frequencies, amplitudes, and initial phases. See link::Classes/Buffer#-sine3::
+
+METHOD:: cheby
+Fill this buffer with a series of Chebyshev polynomials, used for waveshaping. See link::Classes/Buffer#-cheby::
+
+
+
+SUBSECTION::Visual
+
+METHOD:: editable
+Whether or not the contents of the Buffer can be edited with the mouse via the GUI.
+
+METHOD:: drawLines
+Whether or not to draw lines connecting the data points in the GUI. This also draws a line at y=0.
+
+METHOD:: yMin
+The minimum range of the y-axis in the GUI.
+
+METHOD:: yMax
+The maximum range of the y-axis in the GUI.
+
+METHOD:: xMin
+The minimum range of the x-axis in the GUI, in samples.
+
+METHOD:: xMax
+The maximum range of the x-axis in the GUI, in samples.
+
+METHOD:: menuVisible
+Whether the GUI should display the property inspector (allows you to edit axis ranges, size, drawing style, etc.)
+
+METHOD:: alwaysOnTop
+Whether the window will always appear on top of everything else. This is useful when writing code while interacting with the buffer data.
+
+
+
+SUBSECTION::Action / refresh
+METHOD:: action
+A Function to call every time the buffer data changes. Input argument is the VisualBuffer object.
+
+METHOD:: refresh
+Update the contents of the VisualBuffer to sync with the server. (Must be called if you use e.g. BufWr to write to the buffer.)
+
+METHOD:: autoRefresh
+Will update the contents of the VisualBuffer continuously at the specified frequency, until Cmd-Period. To stop, use .autoRefresh(nil)
+
+SUBSECTION::Cacheing
+
+METHOD:: saveContents
+  Whether or not to cache the contents of the buffer.
+
+METHOD:: cacheFolder
+  The folder path into which the cache files will be written. Cache files are deleted with LINK::Classes/VisualBuffer#-delete::
+
+PRIVATE:: asUGenInput
+  PRIVATE:: cachePath
+  PRIVATE:: makeWindow
+  PRIVATE:: numChannels
+  PRIVATE:: numFrames
+  PRIVATE:: path
+  PRIVATE:: fieldsCachePath
+  PRIVATE:: prData
+  PRIVATE:: prReadCache
+  PRIVATE:: prSyncRefresh
+  PRIVATE:: prWriteCache
+  PRIVATE:: prWriteFieldsCache
+  PRIVATE:: prDeleteCache
+  PRIVATE:: pathSymbol
+  PRIVATE:: query
+  PRIVATE:: updateInfo
+  PRIVATE:: window
+  PRIVATE:: windowBounds
+  PRIVATE:: clipAt
+
+
+EXAMPLES::
+
+code::
+Server.default.boot; // server must be booted
+
+~tut = VisualBuffer(\tut);
+
+
+
+// setting values
+~tut[5] = 0.5;
+~tut[5..10] = 0.5;
+~tut[5, 10..50] = 0.2;
+
+~tut.drawLines = true;
+~tut.yMin = 0;
+
+~tut.fill(0.4);
+~tut.put(0, (0.1, 0.15..1));
+~tut.put(0, 100.collect(pow(_ * 0.01, 2)));
+
+// you can also draw by hand
+
+
+
+// two ways to resize the buffer's contents
+~tut.data = (0.1, 0.15..1);
+~tut.size = 200;
+
+
+
+
+
+// wavetable
+~tut.yMin = -1;
+~tut.sine1([1, 0.5, 0.1]);
+(
+{
+  var freq = 200;//MouseX.kr(30, 3000, \exponential);
+  var maxIndex = BufFrames.kr(~tut) - 1;
+  var index = LFSaw.ar(freq).range(0, maxIndex);
+  BufRd.ar(1, ~tut, index).dup(2)
+}.play;
+)
+~tut.sine1([1, 0.5, 0.1, 0.5, 0.0, 0.1, 0.7]);
+
+
+
+// waveshaper
+~tut.data = (0..199).normalize(-1, 1);
+(
+{
+  var freq = 200;
+  var inputAmp = MouseY.kr;
+  var input = SinOsc.ar(freq) * inputAmp;
+  var maxIndex = BufFrames.kr(~tut) - 1;
+  var index = input.range(0, maxIndex);
+  BufRd.ar(1, ~tut, index).dup(2);
+}.play;
+)
+
+
+// this will make a new VisualBuffer to control the contents of the waveshaper buffer.
+~tut_ctrl = VisualBuffer(\tut_ctrl).yMin = 0;
+~tut_ctrl.action = { ~tut.cheby(~tut_ctrl.data) };
+
+  // make sure to reset the action when you're done!
+~tut_ctrl.action = {};
+
+
+
+
+
+
+// sampler
+~tut.read(Platform.resourceDir +/+ "sounds/a11wlk01.wav"); // can also drag+drop
+(
+// play sample
+{
+  var rate = BufDur.kr(~tut).reciprocal;
+  var maxIndex = BufFrames.kr(~tut) - 1;
+  var index = LFSaw.ar(rate, 1).range(0, maxIndex);
+  BufRd.ar(1, ~tut, index).dup(2);
+}.play;
+)
+
+// mapped playback position
+~tut_ctrl.data = (0..1023).normalize
+(
+{
+  var rate = BufDur.kr(~tut).reciprocal;
+  var maxCtrlIndex = BufFrames.kr(~tut_ctrl) - 1;
+  var ctrlIndex = LFSaw.ar(rate, 1).range(0, maxCtrlIndex);
+  var maxIndex = BufFrames.kr(~tut) - 1;
+  var index = BufRd.ar(1, ~tut_ctrl, ctrlIndex) * maxIndex;
+  BufRd.ar(1, ~tut, index.lag2(0.3)).dup(2);
+}.play
+)
+~tut_ctrl.data = ((0..1023) / 1023 * pi).sin;
+
+
+
+
+
+
+( // hand-drawn fft filter
+{
+  var in = [WhiteNoise.ar, Saw.ar(50)] * 0.08;
+  var chain = FFT(LocalBuf(~tut_ctrl.size ! 2), in);
+  chain = PV_MagMul(chain, ~tut_ctrl);
+  chain = PV_MagMul(chain, ~tut_ctrl); // squared mapping
+  IFFT(chain);
+}.play;
+)
+
+( // random scribbles
+{
+  var input = LFDNoise3.ar(3).range(-0.3, 1.1);
+  var maxIndex = BufFrames.kr(~tut_ctrl) - 1;
+  var advanceRate = LFDNoise1.kr(0.2);
+  var index = LFSaw.ar(advanceRate).curverange(0, maxIndex, 2);
+  BufWr.ar(input, ~tut_ctrl, index);
+  DC.ar(0); // silent output
+}.play;
+
+~tut_ctrl.autoRefresh; // for visual update
+)
+
+// stop it with cmd-.
+
+
+
+
+
+
+// delete the cached files
+~tut.delete;
+~tut_ctrl.delete;
+
+//.. or just free the buffers:
+~tut.free;
+~tut_ctrl.free;
+::
