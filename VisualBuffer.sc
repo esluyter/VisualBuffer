@@ -1,15 +1,5 @@
 VisualBuffer {
   /*
-  caveats:
-  - only built for single server use (classvar server)
-  - buffer will be mono
-  - buffer size defaults to 100
-  - asynchronous command in methods:
-       - refresh
-       - read
-       - normalize, updateInfo, gen, sine1 etc, cheby
-  - buffers are saved globally by name - this should change to file-relative.
-
   questions:
   - is it always safe to e.g. buf.setn(whatever);buf.write(whatever) without a sync?
   */
