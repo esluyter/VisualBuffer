@@ -1,9 +1,9 @@
 # VisualBuffer
 Wrapper around a Buffer with editable GUI, drag/drop reading of sound files, Array-like data access, and automatic save/recall.
 
-![screenshot](screenshots/ss1.png)
+![screenshot](screenshots/ss1.png | width=400)
 
-![screenshot](screenshots/ss2.png)
+![screenshot](screenshots/ss2.png | width=400)
 
 Heavily inspired by Pure Data arrays/tables, VisualBuffer is an attempt to bridge the client and server sides of a Buffer for a more integrated, intuitive and tactile experience.
 
